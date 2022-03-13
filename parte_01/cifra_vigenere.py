@@ -34,8 +34,15 @@ def main():
     alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
     # Receber valores do terminal
-    mensagem = input('Digite a mensagem: ').upper()
+    nome_arquivo = input('Digite o nome do arquivo: ')
     chave = input('Digite a chave: ').upper()
+
+    caminho_arquivo = 'parte_02/' + nome_arquivo + '.txt' 
+
+    f = open(caminho_arquivo, "r", encoding="utf8")
+    mensagem = f.read().upper()
+
+    print(mensagem)
 
     # Selecionar operação
     print('\n1 - Cifrar')

@@ -9,7 +9,8 @@ def carrega_dicionario(idioma_provavel):
     arquivo_dicionario.close()
     return palavras
 
-def conta_palavras(texto_decifrado, palavras_ingles):
+def conta_palavras(texto_decifrado, palavras_idioma):
+    # Retorna fração de porcentagem entre as palavras do texto decifrado e as palavras do idioma
 
     texto_decifrado = texto_decifrado.upper()
     texto_decifrado = remove_simbolos(texto_decifrado)
@@ -21,7 +22,7 @@ def conta_palavras(texto_decifrado, palavras_ingles):
 
     combinacoes = 0
     for palavra in palavras_possiveis:
-        if palavra in palavras_ingles:
+        if palavra in palavras_idioma:
             combinacoes += 1
     return float(combinacoes) / len(palavras_possiveis)
 
@@ -37,14 +38,14 @@ def remove_simbolos(texto_decifrado):
 
 
 def legivel(texto_decifrado, idioma_provavel, porcentagem_palavra=20, porcentagem_letra=85):
+    # Analise porcentagem de palavras do texto correspondentes a palavras reais do idioma escolhido
 
-    palavras_ingles = carrega_dicionario(idioma_provavel)
+    palavras_idioma = carrega_dicionario(idioma_provavel)
 
-    palavras_combinam = (conta_palavras(texto_decifrado, palavras_ingles) * 100) >= (porcentagem_palavra)
+    palavras_combinam = (conta_palavras(texto_decifrado, palavras_idioma) * 100) >= (porcentagem_palavra) # True se porcentagem de palavras iguais é maior ou igual a 20% 
 
     num_letras = len(remove_simbolos(texto_decifrado))
-
-    porcentagem_letras_messagem = float(num_letras) / len(texto_decifrado) * 100
-    combinacao_letras = porcentagem_letras_messagem >= porcentagem_letra
+    porcentagem_letras_mensagem = float(num_letras) / len(texto_decifrado) * 100
+    combinacao_letras = porcentagem_letras_mensagem >= porcentagem_letra # True se porcentagem de letras na mensagem é maior que 85%
 
     return palavras_combinam and combinacao_letras

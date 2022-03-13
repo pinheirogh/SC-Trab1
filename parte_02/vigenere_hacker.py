@@ -1,67 +1,57 @@
 import itertools, re
 import freq_analysis, detect_language
 
-NUM_MOST_FREQ_LETTERS = 4 # Attempt this many letters per subkey.
-MAX_KEY_LENGTH = 16 # Will not attempt keys longer than this.
+NUM_MAX_SUBCHAVES_PONTUADAS = 4 # Define a qtde de pontuações mais frequentes para cada subchave
+TAMANHO_MAX_CHAVE = 16 # Define o tamanho máximo de chaves
 
 def encontra_distancia_seq(msg_cifrada):
-    # Goes through the message and finds any 3 to 5 letter sequences
-    # that are repeated. Returns a dict with the keys of the sequence and
-    # values of a list of spacings (num of letters between the repeats).
+    # Procura sequencias de 3 a 5 carecteres que se repetem na mensagem.
+    # Retorna dicionario contendo as sequencias e uma lista dos valores de espaçamento entre as sequencias
 
-    # Use a regular expression to remove non-letters from the message:
     filtro = re.compile('[^A-Z]')
     msg_cifrada = filtro.sub('', msg_cifrada.upper())
 
-    # Compile a list of seqLen-letter sequences found in the message:
-    distancia_seq = {} # Keys are sequences, values are lists of int spacings.
+    
+    distancia_seq = {} # Dicionario contendo sequencias como chaves e listas de espaçamento como valores
     for tamanho_seq in range(3, 6):
         for inicio_seq in range(len(msg_cifrada) - tamanho_seq):
-            # Determine what the sequence is, and store it in seq:
             seq = msg_cifrada[inicio_seq:inicio_seq + tamanho_seq]
-
-            # Look for this sequence in the rest of the message:
+      
+            # Procura pela sequencia no resto da mensagem
             for i in range(inicio_seq + tamanho_seq, len(msg_cifrada) - tamanho_seq):
                 if msg_cifrada[i:i + tamanho_seq] == seq:
-                    # Found a repeated sequence.
-                    if seq not in distancia_seq:
-                        distancia_seq[seq] = [] # Initialize a blank list.
+                    if seq not in distancia_seq: # Achou sequencia repetida
+                        distancia_seq[seq] = []
 
-                    # Append the spacing distance between the repeated
-                    # sequence and the original sequence:
+                    # Insere o espaçamento entre a sequencia repetida e a sequencia original
                     distancia_seq[seq].append(i - inicio_seq)
     return distancia_seq
 
 def multiplos_uteis(numero):
-    # Returns a list of useful factors of num. By "useful" we mean factors
-    # less than MAX_KEY_LENGTH + 1 and not 1. For example,
-    # multiplos_uteis(144) returns [2, 3, 4, 6, 8, 9, 12, 16]
-
+    # Retorna lista de múltiplos úteis de um número. 
+    # São úteis os que são menores que o MÁXIMO TAMANHO DEFINIDO para chaves e os que não são 1.
+    
     if numero < 2:
-        return [] # Numbers less than 2 have no useful factors.
+        return []
 
-    multiplos = [] # The list of factors found.
+    multiplos = []
 
-    # When finding factors, you only need to check the integers up to
-    # MAX_KEY_LENGTH.
-    for i in range(2, MAX_KEY_LENGTH + 1): # Don't test 1: it's not useful.
-        if numero % i == 0: #se for par
+    for i in range(2, TAMANHO_MAX_CHAVE + 1):
+        if numero % i == 0: # Testa se i é múltiplo do numero
             multiplos.append(i)
             outro_multiplo = int(numero / i)
-            if (outro_multiplo < MAX_KEY_LENGTH + 1) and (outro_multiplo != 1):
+            if (outro_multiplo < TAMANHO_MAX_CHAVE + 1) and (outro_multiplo != 1):
                 multiplos.append(outro_multiplo)
-    return list(set(multiplos)) # Remove duplicate factors.
+    return list(set(multiplos)) # Remove múltiplos repetidos
 
 def get_item_1(items):
     return items[1]
 
 def conta_multiplos_frequentes(seq_multiplo):
-    # First, get a count of how many times a factor occurs in seqFactors:
-    contagem_multiplo = {} # Key is a factor, value is how often it occurs.
+    # Retorna os múltiplos mais frequentes juntamente com suas quantidades.
 
-    # seqFactors keys are sequences, values are lists of factors of the
-    # spacings. seqFactors has a value like: {'GFD': [2, 3, 4, 6, 9, 12,
-    # 18, 23, 36, 46, 69, 92, 138, 207], 'ALW': [2, 3, 4, 6, ...], ...}
+    contagem_multiplo = {}
+
     for seq in seq_multiplo:
         lista_multiplo = seq_multiplo[seq]
         for multiplo in lista_multiplo:
@@ -69,101 +59,97 @@ def conta_multiplos_frequentes(seq_multiplo):
                 contagem_multiplo[multiplo] = 0
             contagem_multiplo[multiplo] += 1
 
-    # Second, put the factor and its count into a tuple, and make a list
-    # of these tuples so we can sort them:
+    # Insere uma tupla em uma lista contendo os múltiplos e suas quantidades para posterior ordenação.
     contagem_por_multiplo = []
     for multiplo in contagem_multiplo:
-        # Exclude factors larger than MAX_KEY_LENGTH:
-        if multiplo <= MAX_KEY_LENGTH:
-            # factorsByCount is a list of tuples: (factor, factorCount)
-            # factorsByCount has a value like: [(3, 497), (2, 487), ...]
+        if multiplo <= TAMANHO_MAX_CHAVE:
             contagem_por_multiplo.append( (multiplo, contagem_multiplo[multiplo]) )
 
-    # Sort the list by the factor count:
+    # Ordena lista por quantidade de múltiplos.
     contagem_por_multiplo.sort(key=get_item_1, reverse=True)
 
     return contagem_por_multiplo
 
 def analise_kasiski(msg_cifrada):
-    # Find out the sequences of 3 to 5 letters that occur multiple times
-    # in the msg_cifrada. repeatedSeqSpacings has a value like:
-    # {'EXG': [192], 'NAF': [339, 972, 633], ... }
+    # Analisa mensagem cifrada e procura por sequencias repetitivas de 3 a 5 caracteres.
+    # Retorna lista com espaçamentos mais frequentes e seus múltiplos e portanto tamanhos de chave mais prováveis.
+    
     distancia_seq = encontra_distancia_seq(msg_cifrada)
 
-    # (See conta_multiplos_frequentes() for a description of seqFactors.)
+    # Insere os espaçamentos e seus múltiplos para cada sequencia no dicionário.
     seq_multiplo = {}
     for seq in distancia_seq:
         seq_multiplo[seq] = []
         for dist in distancia_seq[seq]:
             seq_multiplo[seq].extend(multiplos_uteis(dist))
 
-    # (See conta_multiplos_frequentes() for a description of factorsByCount.)
-    contagem_por_multiplo = conta_multiplos_frequentes(seq_multiplo)
+    contagem_por_multiplo = conta_multiplos_frequentes(seq_multiplo) # Contém múltiplos/espaçamentos mais frequentes de todas as sequencias possíveis e seus valores, ordenados.
 
-    # Now we extract the factor counts from factorsByCount and
-    # put them in lista_de_comprimentos so that they are easier to
-    # use later:
+    # Insere somente os múltiplos de forma ordenada em lista de retorno.
     comprimentos_possiveis = []
     for tupla in contagem_por_multiplo:
         comprimentos_possiveis.append(tupla[0])
 
     return comprimentos_possiveis
 
-def letras_subchave_n(sub_chave, comprimento_chave, msg_cifrada):
-    # Returns every nth letter for each keyLength set of letters in text.
-    # E.g. letras_subchave_n(1, 3, 'ABCABCABC') returns 'AAA'
-    #      letras_subchave_n(2, 3, 'ABCABCABC') returns 'BBB'
-    #      letras_subchave_n(3, 3, 'ABCABCABC') returns 'CCC'
-    #      letras_subchave_n(1, 5, 'ABCDEFGHI') returns 'AF'
+def letras_subchave_n(indice_subchave, comprimento_chave, msg_cifrada):
+    # Filtra mensagem recebida de modo a compor string com caracteres em posições proporcionais ao índice recebido.
+    # Retorna string com letras na posição especificada
 
-    # Use a regular expression to remove non-letters from the message:
     filtro = re.compile('[^A-Z]')
     msg_cifrada = filtro.sub('', msg_cifrada)
 
-    i = sub_chave - 1
+    i = indice_subchave - 1 # Define a posição inicial do índice recebido
     letras = []
     while i < len(msg_cifrada):
-        letras.append(msg_cifrada[i])
-        i += comprimento_chave
+        letras.append(msg_cifrada[i]) # Insere o caractere na posição do índice na string
+        i += comprimento_chave # Incrementa o índice conforme tamanho da chave
     return ''.join(letras)
 
-def quebra_cifra(msg_cifrada, comprimento, idioma_provavel):
+def quebrar_cifra(msg_cifrada, comprimento_chave, idioma_provavel):
+    # Tenta quebrar a cifra através da análise do texto de acordo com o idioma especificado
+    # Continua rodando até a cifra seja quebrada ou não seja possível quebrá-la
+
     alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    # Determine the most likely letters for each letter in the key:
+
     msg_cifrada_maiuscula = msg_cifrada.upper()
-    # allFreqScores is a list of mostLikelyKeyLength number of lists.
-    # These inner lists are the freqScores lists.
+
+    # Testa cada uma das letras do alfabeto como subchave de string filtrada nas posições especificadas e armazena a pontuação por frequencia da letra em questão.
+    # Após testar cada uma das letras retorna lista de tamanho 'comprimento_chave' contendo em cada posição as subchaves mais pontuadas para aquela posição.
     lista_pontuacao_freq = []
-    for sub_chave in range(1, comprimento + 1):
-        letras = letras_subchave_n(sub_chave, comprimento, msg_cifrada_maiuscula)
+    for indice_subchave in range(1, comprimento_chave + 1):
+        letras_posicao_n = letras_subchave_n(indice_subchave, comprimento_chave, msg_cifrada_maiuscula) # Busca a string
 
         pontuacao_freq = []
 
         for possivel_subchave in alfabeto:
-            msg_decifrada = decifrar_mensagem(possivel_subchave, letras, alfabeto)
-            qtd_possivel_chave = (possivel_subchave, freq_analysis.pontuacao_freq(msg_decifrada, idioma_provavel))
-            pontuacao_freq.append(qtd_possivel_chave)
+            msg_decifrada = decifrar_mensagem(possivel_subchave, letras_posicao_n, alfabeto)
+            pontuacao_freq_subchave = (possivel_subchave, freq_analysis.pontuacao_por_freq(msg_decifrada, idioma_provavel)) # Busca a pontuação da subchave em questão para a string
+            pontuacao_freq.append(pontuacao_freq_subchave) # ['A', 8]
 
-        pontuacao_freq.sort(key=get_item_1, reverse=True)
+        pontuacao_freq.sort(key=get_item_1, reverse=True) # Ordena subchaves pela pontuação
 
-        lista_pontuacao_freq.append(pontuacao_freq[:NUM_MOST_FREQ_LETTERS])
+        lista_pontuacao_freq.append(pontuacao_freq[:NUM_MAX_SUBCHAVES_PONTUADAS]) # Pega somente as 4 (ou x) pontuações mais frequentes para cada subchave
+    
+    print(f'Lista de pontuação das subchaves por posicao na chave:\n{lista_pontuacao_freq}\n')
 
-    # Try every combination of the most likely letters for each position
-    # in the key:
-    for indices in itertools.product(range(NUM_MOST_FREQ_LETTERS), repeat=comprimento):
+    # Utiliza 'itertools' para gerar todos os índices possíveis na geração de chaves de tamanho 'comprimento_chave'.
+    for indices in itertools.product(range(NUM_MAX_SUBCHAVES_PONTUADAS), repeat=comprimento_chave):
 
-        # Create a possible key from the letters in allFreqScores:
         possivel_chave = ''
-        for i in range(comprimento):
+        
+        # Pega os indices gerados e coleta as subchaves correspondente na lista de subchaves com maior pontuação.
+        for i in range(comprimento_chave):
             possivel_chave += lista_pontuacao_freq[i][indices[i]][0]
 
         print('Possível chave: %s' % (possivel_chave))
 
         texto_decifrado = decifrar_mensagem(possivel_chave, msg_cifrada_maiuscula, alfabeto)
 
+        # Analisa legibilidade da mensagem decifrada de acordo com idioma definido
+        # Uso opcional, porém irá imprimir todas as possibilidades de decifração
         if detect_language.legivel(texto_decifrado, idioma_provavel):
 
-            # Check with user to see if the key has been found:
             print(f'\nTexto decifrado com a chave "{possivel_chave}":\n')
             print(texto_decifrado)
 
@@ -173,35 +159,23 @@ def quebra_cifra(msg_cifrada, comprimento, idioma_provavel):
             if response.strip().upper().startswith('S'):
                 return texto_decifrado
 
-    # No English-looking decryption found, so return None:
+    # Retorna None se não foi possível decifrar a mensagem
     return None
 
 def decifrador_vigenere(msg_cifrada, idioma_provavel): 
-    lista_de_comprimentos = analise_kasiski(msg_cifrada) # Retorna a lista de comprimentos possiveis que a chave pode ter
+    lista_de_comprimentos = analise_kasiski(msg_cifrada) # Retorna a lista de comprimentos possiveis que a chave pode ter ordenada por frequencia
 
-    print(f"\nComprimentos possíveis da chave: {lista_de_comprimentos}")
+    print(f"\nPossíveis comprimentos de chave, segundo Kasiski: {lista_de_comprimentos}")
     
     msg_decifrada = None
 
     for comprimento in lista_de_comprimentos:
-        print(f"Tentando hackear com comprimento de chave {comprimento}\n")
+        print(f"\nTentando hackear com comprimento de chave {comprimento}\n")
 
-        msg_decifrada = quebra_cifra(msg_cifrada, comprimento, idioma_provavel)
+        msg_decifrada = quebrar_cifra(msg_cifrada, comprimento, idioma_provavel)
 
         if msg_decifrada != None:
             break
-
-    # If none of the key lengths we found using Kasiski Examination
-    # worked, start brute-forcing through key lengths:
-    # if msg_decifrada == None:
-    #     print('Unable to hack message with likely key length(s). Brute forcing key length...')
-    #     for comprimento_chave in range(1, MAX_KEY_LENGTH + 1):
-    #         # Don't re-check key lengths already tried from Kasiski:
-    #         if comprimento_chave not in lista_de_comprimentos:
-    #             print(f"Attempting hack with key length {comprimento_chave} ({NUM_MOST_FREQ_LETTERS ** comprimento_chave} possible keys)...")
-    #             msg_decifrada = quebra_cifra(msg_cifrada, comprimento_chave)
-    #             if msg_decifrada != None:
-    #                 break
 
 
     return msg_decifrada
@@ -224,11 +198,15 @@ def decifrar_mensagem(chave, mensagem, alfabeto):
 
 def main():
 
-    msg_cifrada = input('Digite a mensagem: ')
+    nome_arquivo = input('Digite o nome do arquivo: ')
     idioma_provavel = input('Digite o provável idioma: ')
 
-    with open("parte_02/desafio2.txt") as f:
-        msg_cifrada = f.read()
+    caminho_arquivo = 'parte_02/' + nome_arquivo + '.txt' 
+
+    f = open(caminho_arquivo, "r", encoding="utf8")
+    msg_cifrada = f.read()
+
+    print(msg_cifrada)
 
     msg_decifrada = decifrador_vigenere(msg_cifrada, idioma_provavel)
 
